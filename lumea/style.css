@@ -8,6 +8,13 @@
     html{color-scheme:only light}
     body{font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:var(--warm);color:var(--text);overflow-x:hidden}
     body:not(.dark){color-scheme:only light;background:#fff9f7!important;color:#2e1a22!important}
+    /* Samsung Internet / Android forced-dark rendering ignores color-scheme:only light
+       unless the page also declares its own prefers-color-scheme:dark styles — this
+       block gives it that signal so it stops re-coloring the page itself. */
+    @media (prefers-color-scheme: dark) {
+      body:not(.dark){background:#fff9f7!important;color:#2e1a22!important}
+      body.dark{background:#150b10!important;color:#f5e6ec!important}
+    }
     ::-webkit-scrollbar{width:5px} ::-webkit-scrollbar-track{background:var(--blush)} ::-webkit-scrollbar-thumb{background:var(--dusty);border-radius:10px}
 
     /* NAV */
