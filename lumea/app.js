@@ -810,6 +810,16 @@ const _rememberMe = localStorage.getItem('lumea_remember') === '1';
 window._authToken = _rememberMe
   ? (localStorage.getItem('lumea_dev_token') || sessionStorage.getItem('lumea_dev_token') || null)
   : (sessionStorage.getItem('lumea_dev_token') || null);
+// Frontend and backend are on different origins, so the CSRF cookie the
+// backend sets isn't readable via document.cookie here — it's scoped to
+// the backend's own origin. The backend echoes it in the login/register
+// response body instead, and we store/restore it the same way as the dev token.
+window._csrfToken = _rememberMe
+  ? (localStorage.getItem('lumea_csrf_token') || sessionStorage.getItem('lumea_csrf_token') || null)
+  : (sessionStorage.getItem('lumea_csrf_token') || null);
+
+const CSRF_SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS', 'TRACE']);
+
 window.fetch = async (...args) => {
   const controller = new AbortController();
   const timeout    = setTimeout(() => controller.abort(), 10000);
@@ -821,6 +831,10 @@ window.fetch = async (...args) => {
   options.credentials = options.credentials || 'include';
   if (window._authToken && !options.headers['Authorization']) {
     options.headers['Authorization'] = `Bearer ${window._authToken}`;
+  }
+  const method = (options.method || 'GET').toUpperCase();
+  if (!CSRF_SAFE_METHODS.has(method) && !options.headers['x-csrf-token'] && window._csrfToken) {
+    options.headers['x-csrf-token'] = window._csrfToken;
   }
 
   let res;
@@ -855,7 +869,7 @@ function _forceSignOut(msg) {
 async function validateSession() {
   if (!currentUser) return;
   try {
-    const res = await _origFetch(`${API_URL}/api/users/me`, { credentials: 'include' });
+    const res = await _origFetch(`${API_URL}/api/users/me`, { credentials: 'include', headers: { 'ngrok-skip-browser-warning': 'true' } });
     if (res.status === 401 || res.status === 404) {
       _forceSignOut('Your account no longer exists. Please create a new one.');
     }
@@ -941,12 +955,13 @@ async function initAuth() {
 }
 
 function clearAuth() {
-  ['lumea_token','lumea_refresh_token','lumea_user','lumea_dev_token'].forEach(k => {
+  ['lumea_token','lumea_refresh_token','lumea_user','lumea_dev_token','lumea_csrf_token'].forEach(k => {
     localStorage.removeItem(k);
     sessionStorage.removeItem(k);
   });
   localStorage.removeItem('lumea_remember');
   window._authToken = null;
+  window._csrfToken = null;
 }
 
 async function loadWishlistFromDB() {
@@ -1023,6 +1038,11 @@ async function doSignIn() {
     const storage = remember ? localStorage : sessionStorage;
     storage.setItem('lumea_user', JSON.stringify(data.data.user));
     localStorage.setItem('lumea_remember', remember ? '1' : '0');
+    if (data.data.csrf_token) {
+      window._csrfToken = data.data.csrf_token;
+      storage.setItem('lumea_csrf_token', data.data.csrf_token);
+      (remember ? sessionStorage : localStorage).removeItem('lumea_csrf_token');
+    }
     currentUser = data.data.user;
     updateAccountUI();
     await loadWishlistFromDB();
@@ -1100,6 +1120,10 @@ async function doRegister() {
     if (data.data.access_token) {
       window._authToken = data.data.access_token;
       sessionStorage.setItem('lumea_dev_token', data.data.access_token);
+    }
+    if (data.data.csrf_token) {
+      window._csrfToken = data.data.csrf_token;
+      sessionStorage.setItem('lumea_csrf_token', data.data.csrf_token);
     }
     localStorage.setItem('lumea_user', JSON.stringify(data.data.user));
     localStorage.setItem('lumea_remember', '1');
@@ -1444,7 +1468,7 @@ async function applyDiscount() {
   if (msg) { msg.textContent = 'Checking…'; msg.style.color = 'var(--muted)'; }
 
   try {
-    const res  = await _origFetch(`${API_URL}/api/discounts/validate/${encodeURIComponent(code)}`);
+    const res  = await _origFetch(`${API_URL}/api/discounts/validate/${encodeURIComponent(code)}`, { headers: { 'ngrok-skip-browser-warning': 'true' } });
     const data = await res.json();
     if (!res.ok) {
       appliedDiscount = null;
