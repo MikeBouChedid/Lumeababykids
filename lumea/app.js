@@ -2227,31 +2227,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (e.key === 'Escape') { closeAllPages(); }
   });
 
-  const themeBtn = document.getElementById('theme-btn');
-  const moonIcon = document.getElementById('theme-icon-moon');
-  const sunIcon  = document.getElementById('theme-icon-sun');
-
-  const themeColorMeta = document.querySelector('meta[name="theme-color"]');
-
-  function applyTheme(isDark) {
-    document.body.classList.toggle('dark', isDark);
-    moonIcon.style.display = isDark ? 'none'  : 'block';
-    sunIcon.style.display  = isDark ? 'block' : 'none';
-    if (themeColorMeta) themeColorMeta.setAttribute('content', isDark ? '#150b10' : '#fff9f7');
-  }
-
-  const savedTheme = sessionStorage.getItem('lumea_theme');
-  const isDarkMode = savedTheme === 'dark';
-  applyTheme(isDarkMode);
-
-  themeBtn.addEventListener('click', () => {
-    const isDark = document.body.classList.toggle('dark');
-    moonIcon.style.display = isDark ? 'none'  : 'block';
-    sunIcon.style.display  = isDark ? 'block' : 'none';
-    if (themeColorMeta) themeColorMeta.setAttribute('content', isDark ? '#150b10' : '#fff9f7');
-    sessionStorage.setItem('lumea_theme', isDark ? 'dark' : 'light');
-  });
-
   const fcState = { type:'all', age:'all', gender:'all', season:'all', size:'all', badge:'all' };
   let filterDebounce;
 
